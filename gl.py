@@ -4,6 +4,7 @@ import numpy as np
 
 from math import cos, sin, tan, pi
 
+Steps = 1
 from obj import Obj
 
 V2 = namedtuple('Point2', ['x', 'y'])
@@ -122,35 +123,8 @@ class Raytracer(object):
                                 material.diffuse[1],
                                 material.diffuse[2]])
 
-        dirLightColor = np.array([0,0,0])
-        ambLightColor = np.array([0,0,0])
-
-
         for light in self.lights:
-            if light.lightType == 0: # directional light
-                diffuseColor = np.array([0,0,0])
-
-                light_dir = np.array(light.direction) * -1
-                intensity = np.dot(intersect.normal, light_dir)
-                intensity = float(max(0, intensity))
-
-                diffuseColor = np.array([intensity * light.color[0] * light.intensity,
-                                         intensity * light.color[1] * light.intensity,
-                                         intensity * light.color[2] * light.intensity])
-
-                #Shadows
-                shadow_intensity = 0
-                shadow_intersect = self.scene_intersect(intersect.point, light_dir, intersect.sceneObj)
-                if shadow_intersect:
-                    shadow_intensity = 1
-
-
-                dirLightColor = np.add(dirLightColor, diffuseColor * (1 - shadow_intensity))
-
-            elif light.lightType == 2: # ambient light
-                ambLightColor = np.array(light.color) * light.intensity
-
-        finalColor = dirLightColor + ambLightColor
+           finalColor = np.add(finalColor, light.getColor(intersect, self))
 
         finalColor *= objectColor
 
@@ -164,16 +138,15 @@ class Raytracer(object):
 
 
     def glRender(self):
-        for y in range(self.vpY, self.vpY + self.vpHeight + 1):
-            for x in range(self.vpX, self.vpX + self.vpWidth + 1):
+        # Proyeccion
+        t = tan((self.fov * np.pi / 180) / 2) * self.nearPlane
+        r = t * self.vpWidth / self.vpHeight
+        for y in range(self.vpY, self.vpY + self.vpHeight + 1, Steps):
+            for x in range(self.vpX, self.vpX + self.vpWidth + 1, Steps):
                 # Pasar de coordenadas de ventana a
                 # coordenadas NDC (-1 a 1)
                 Px = ((x + 0.5 - self.vpX) / self.vpWidth) * 2 - 1
                 Py = ((y + 0.5 - self.vpY) / self.vpHeight) * 2 - 1
-
-                # Proyeccion
-                t = tan((self.fov * np.pi / 180) / 2) * self.nearPlane
-                r = t * self.vpWidth / self.vpHeight
 
                 Px *= r
                 Py *= t

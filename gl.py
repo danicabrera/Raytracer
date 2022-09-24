@@ -1,11 +1,14 @@
 import struct
 from collections import namedtuple
+from figures import *
+from lights import *
 import numpy as np
-
+from obj import Obj
 from math import cos, sin, tan, pi
 
 Steps = 1
-from obj import Obj
+Max_Recursion_Depth = 3
+
 
 V2 = namedtuple('Point2', ['x', 'y'])
 V3 = namedtuple('Point3', ['x', 'y', 'z'])
@@ -58,6 +61,7 @@ class Raytracer(object):
 
         self.scene = [ ]
         self.lights = [ ]
+        self.envMap = None
 
 
         self.clearColor = color(0,0,0)
@@ -110,11 +114,16 @@ class Raytracer(object):
 
         return intersect
 
-    def cast_ray(self, orig, dir):
-        intersect = self.scene_intersect(orig, dir, None)
+    def cast_ray(self, orig, dir, sceneObj = None, recursion = 0):
+        intersect = self.scene_intersect(orig, dir, sceneObj)
 
-        if intersect == None:
-            return None
+        if intersect == None or recursion >= Max_Recursion_Depth:
+            if self.envMap:
+                return self.envMap.getEnvColor(dir)
+            else:
+                return (self.clearColor[0] / 255,
+                        self.clearColor[1] / 255,
+                        self.clearColor[2] / 255)
 
         material = intersect.sceneObj.material
 
@@ -123,8 +132,52 @@ class Raytracer(object):
                                 material.diffuse[1],
                                 material.diffuse[2]])
 
-        for light in self.lights:
-           finalColor = np.add(finalColor, light.getColor(intersect, self))
+        if material.matType ==OPAQUE:
+            for light in self.lights:
+                diffuseColor = light.getDiffuseColor(intersect, self)
+                specColor = light.getSpecColor(intersect, self)
+                shadowIntensity = light.getShadowIntensity(intersect, self)
+
+                lightColor = (diffuseColor + specColor) * (1 - shadowIntensity)
+                finalColor = np.add(finalColor, lightColor)
+
+        elif material.matType == REFLECTIVE:
+            reflect = reflectVector(intersect.normal, np.array(dir) * -1)
+            reflectColor = self.cast_ray(intersect.point, reflect, intersect.sceneObj, recursion + 1)
+            reflectColor = np.array(reflectColor)
+
+            specColor = np.array([0, 0, 0])
+            for light in self.lights:
+                specColor = np.add(specColor, light.getSpecColor(intersect, self))
+
+            finalColor = reflectColor + specColor
+
+        elif material.matType == TRANSPARENT:
+            outside = np.dot(dir, intersect.normal) < 0
+            bias = intersect.normal * 0.001
+
+            specColor = np.array([0, 0, 0])
+            for light in self.lights:
+                specColor = np.add(specColor, light.getSpecColor(intersect, self))
+
+            reflect = reflectVector(intersect.normal, np.array(dir) * -1)
+            if outside:
+                reflectOrigin = np.add(intersect.point, bias)
+            else:
+                reflectOrigin = np.subtract(intersect.point, bias)
+            reflectColor = self.cast_ray(reflectOrigin, reflect, None, recursion + 1)
+            reflectColor = np.array(reflectColor)
+
+            kr = fresnel(intersect.normal, dir, material.ior)
+            refractColor = np.array([0, 0, 0])
+            if kr < 1:
+                refract = refractVector(intersect.normal, dir, material.ior)
+                refractOrigin = np.subtract(intersect.point, bias) if outside else np.add(intersect.point, bias)
+                refractColor = self.cast_ray(refractOrigin, refract, None, recursion +1)
+                refractColor = np.array(refractColor)
+
+            finalColor = reflectColor * kr + refractColor * (1-kr) + specColor
+
 
         finalColor *= objectColor
 

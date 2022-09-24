@@ -3,6 +3,9 @@ import numpy as np
 WHITE = (1,1,1)
 BLACK = (0,0,0)
 
+OPAQUE = 0
+REFLECTIVE = 1
+TRANSPARENT = 2
 class Intersect(object):
     def __init__(self, distance, point, normal, sceneObj):
         self.distance = distance
@@ -11,9 +14,11 @@ class Intersect(object):
         self.sceneObj = sceneObj
 
 class Material(object):
-    def __init__(self, diffuse = WHITE, spec = 1.0):
+    def __init__(self, diffuse = WHITE, spec = 1.0, ior = 1.0, matType = 0):
         self.diffuse = diffuse
         self.spec = spec
+        self.ior = ior
+        self.matType = matType
 
 
 class Sphere(object):

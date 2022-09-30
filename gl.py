@@ -181,6 +181,11 @@ class Raytracer(object):
 
         finalColor *= objectColor
 
+        if material.texture and intersect.texcoords:
+            texColor = material.texture.getColor(intersect.texcoords[0], intersect.texcoords[1])
+            if(texColor) is not  None:
+                finalColor *= np.array(texColor)
+
         r = min(1, finalColor[0])
         g = min(1, finalColor[1])
         b = min(1, finalColor[2])

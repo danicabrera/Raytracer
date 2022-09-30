@@ -4,8 +4,8 @@ from texture import *
 from lights import *
 
 
-width = 256
-height = 256
+width = 1024
+height = 1024
 
 # Materiales
 earth = Material(texture = Texture("earthDay .bmp"))

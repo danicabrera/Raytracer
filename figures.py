@@ -46,7 +46,7 @@ class Sphere(object):
             t0 = t1
         if t0 < 0:
             return None
-        
+
         # P = O + t0 * D
         P = np.add(orig, t0 * np.array(dir))
         normal = np.subtract(P, self.center)
@@ -57,11 +57,11 @@ class Sphere(object):
 
         uvs = (u, v)
 
-        return Intersect(distance = t0,
-                         point = P,
-                         normal = normal,
-                         texcoords= uvs,
-                         sceneObj = self)
+        return Intersect(distance=t0,
+                         point=P,
+                         normal=normal,
+                         texcoords=uvs,
+                         sceneObj=self)
 
 class Plane(object):
     def __init__(self, position, normal, material):
@@ -190,7 +190,83 @@ class Disk(object):
                          texcoords=None,
                          sceneObj=self)
 
+class Triangle(object):
+    def __init__(self, position, normal, material):
+        self.position = position
+        self.normal  = normal
+        self.material = material
+        self.plane = Plane(position,normal, material)
+
+    def ray_intersect(self, orig, dir):
+        intersect = self.plane.ray_intersect(orig, dir)
+        if intersect is None:
+            return None
+        contactDistance = np.subtract(intersect.point, self.plane.position)
+        contactDistance = np.linalg.norm(contactDistance)
+        if contactDistance > self.radius:
+            return None
+
+        return Intersect(distance=intersect.distance,
+                         point=intersect.point,
+                         normal=self.plane.normal,
+                         texcoords=None,
+                         sceneObj=self)
+
+class HalfSphere(object):
+    def __init__(self, center, radius, material):
+        self.center = center
+        self.radius = radius
+        self.material = material
+
+
+    def ray_intersect(self, orig, dir):
+        L = np.subtract(self.center, orig)
+        tca = np.dot(L, dir)
+        d = (np.linalg.norm(L) ** 2 - tca ** 2) ** 0.5
+
+        if d > self.radius:
+            return None
 
 
 
+        thc = (self.radius ** 2 - d ** 2) ** 0.5
 
+        t0 = tca - thc
+        t1 = tca + thc
+
+
+        if t0 < 0:
+            t0 = t1
+        if t0 < 0:
+            return None
+
+        # P = O + t0 * D
+        P = np.add(orig, t0 * np.array(dir))
+
+
+        normal = np.subtract(P, self.center)
+        normal = normal / np.linalg.norm(normal)
+
+        u = 1 - ((np.arctan2(normal[2], normal[0]) / (2 * np.pi)) + 0.5)
+        v = np.arccos(-normal[1]) / np.pi
+
+        uvs = (u, v)
+
+        return Intersect(distance=t0,
+                         point=P,
+                         normal=normal,
+                         texcoords=uvs,
+                         sceneObj=self)
+
+
+class Capsule(object):
+    def __init__(self, position, size, material):
+        self.size = size
+        self.position = position
+        self.material = material
+        self.radius = size[0]
+
+        AABB(position, size, material)
+
+    def ray_intersect(self):
+        pass
